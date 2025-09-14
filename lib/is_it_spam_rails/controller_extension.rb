@@ -15,11 +15,13 @@ module IsItSpamRails
       # @option options [String, Proc] :on_spam[:redirect_to] Path to redirect to when spam is detected
       # @option options [String] :on_spam[:notice] Flash notice message to display
       # @option options [String] :on_spam[:alert] Flash alert message to display
+      # @option options [Symbol, String] :form_param_name Name of the nested parameter containing form data
       def is_it_spam(options = {})
         on_spam_options = options.delete(:on_spam) || {}
+        form_param_name = options.delete(:form_param_name)
         
         before_action(options) do
-          check_for_spam(on_spam_options)
+          check_for_spam(on_spam_options, form_param_name)
         end
       end
     end
@@ -29,10 +31,11 @@ module IsItSpamRails
     # Check for spam and handle accordingly
     #
     # @param on_spam_options [Hash] Options for spam handling
+    # @param form_param_name [Symbol, String, nil] Name of the nested parameter containing form data
     # @return [void]
-    def check_for_spam(on_spam_options = {})
-      # Extract form parameters - try common nested keys first
-      form_params = extract_form_params
+    def check_for_spam(on_spam_options = {}, form_param_name = nil)
+      # Extract form parameters - try custom parameter name first if provided
+      form_params = extract_form_params(form_param_name)
       
       # Skip if essential parameters are blank
       return unless form_params[:name].present? && form_params[:email].present? && form_params[:message].present?
@@ -61,12 +64,23 @@ module IsItSpamRails
 
     # Extract form parameters from nested params
     #
+    # @param form_param_name [Symbol, String, nil] Name of the nested parameter containing form data
     # @return [Hash] Extracted form parameters
-    def extract_form_params
-      # Try common form parameter keys
+    def extract_form_params(form_param_name = nil)
+      # First try custom form parameter name if provided
+      if form_param_name && params[form_param_name.to_sym].is_a?(ActionController::Parameters)
+        nested_params = params[form_param_name.to_sym]
+        return {
+          name: nested_params[:name] || nested_params[:first_name] || "#{nested_params[:first_name]} #{nested_params[:last_name]}".strip,
+          email: nested_params[:email],
+          message: nested_params[:message] || nested_params[:body] || nested_params[:content]
+        }
+      end
+      
+      # Try common form parameter keys for backward compatibility
       common_keys = [:commission, :contact, :inquiry, :message, :form]
       
-      # First try nested parameters
+      # Try nested parameters
       common_keys.each do |key|
         if params[key].is_a?(ActionController::Parameters)
           nested_params = params[key]
