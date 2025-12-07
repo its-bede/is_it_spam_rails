@@ -84,9 +84,10 @@ module IsItSpamRails
   # @param email [String] Email address from the contact form
   # @param message [String] Message content from the contact form
   # @param custom_fields [Hash] Additional custom fields to check
+  # @param end_user_ip [String, nil] IP address of the end user filling the form (optional)
   # @return [SpamCheckResult] The result of the spam check
-  def self.check_spam(name:, email:, message:, custom_fields: {})
-    client.check_spam(name: name, email: email, message: message, custom_fields: custom_fields)
+  def self.check_spam(name:, email:, message:, custom_fields: {}, end_user_ip: nil)
+    client.check_spam(name: name, email: email, message: message, custom_fields: custom_fields, end_user_ip: end_user_ip)
   end
 
   # Check API health

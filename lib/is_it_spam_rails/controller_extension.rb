@@ -40,12 +40,20 @@ module IsItSpamRails
       # Skip if essential parameters are blank
       return unless form_params[:name].present? && form_params[:email].present? && form_params[:message].present?
 
+      # Capture end user IP if tracking is enabled and request is available
+      end_user_ip = if IsItSpamRails.configuration.track_end_user_ip && respond_to?(:request) && request.respond_to?(:remote_ip)
+                      request.remote_ip
+                    else
+                      nil
+                    end
+
       begin
         @spam_check_result = IsItSpamRails.check_spam(
           name: form_params[:name],
           email: form_params[:email],
           message: form_params[:message],
-          custom_fields: {}
+          custom_fields: {},
+          end_user_ip: end_user_ip
         )
         
         if @spam_check_result&.spam? && on_spam_options.any?

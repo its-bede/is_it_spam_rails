@@ -39,11 +39,12 @@ module IsItSpamRails
     # @param email [String] Email address from the contact form
     # @param message [String] Message content from the contact form
     # @param custom_fields [Hash] Additional custom fields to check (optional)
+    # @param end_user_ip [String, nil] IP address of the end user filling the form (optional)
     # @return [SpamCheckResult] The result of the spam check
     # @raise [ValidationError] When required parameters are missing or invalid
     # @raise [ApiError] When the API returns an error
     # @raise [RateLimitError] When rate limits are exceeded
-    def check_spam(name:, email:, message:, custom_fields: {})
+    def check_spam(name:, email:, message:, custom_fields: {}, end_user_ip: nil)
       validate_required_params(name: name, email: email, message: message)
 
       payload = {
@@ -54,6 +55,11 @@ module IsItSpamRails
           additional_fields: custom_fields
         }
       }
+
+      # Only include end_user_ip if tracking is enabled and IP is provided
+      if IsItSpamRails.configuration.track_end_user_ip && end_user_ip.present?
+        payload[:spam_check][:end_user_ip] = end_user_ip
+      end
 
       response = make_request(:post, "/api/#{API_VERSION}/spam_checks", body: payload.to_json)
       SpamCheckResult.new(response.parsed_response)

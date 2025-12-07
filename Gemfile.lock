@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    is_it_spam_rails (0.1.0)
+    is_it_spam_rails (2.0.0)
       httparty (~> 0.21)
       rails (>= 6.0)
 

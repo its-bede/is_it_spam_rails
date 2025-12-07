@@ -62,6 +62,39 @@ export IS_IT_SPAM_BASE_URL=https://is-it-spam.com  # optional
 
 The gem will automatically use these if no explicit configuration is provided.
 
+### End User IP Tracking
+
+By default, the gem tracks the IP address of the person filling out your form (`request.remote_ip`) and sends it to the is-it-spam.com API for IP-based spam blocking.
+
+**Privacy Considerations:**
+- End user IPs are stored in spam check logs for analytics and spam detection
+- IPs can be blocked at system, user, or app level
+- Consider your privacy policy and GDPR requirements when deploying this feature
+
+**Configuration:**
+
+```ruby
+IsItSpamRails.configure do |config|
+  config.api_key = "your_api_key"
+  config.api_secret = "your_api_secret"
+  config.track_end_user_ip = true  # Default: true
+end
+```
+
+**To disable IP tracking:**
+
+```ruby
+IsItSpamRails.configure do |config|
+  config.api_key = "your_api_key"
+  config.api_secret = "your_api_secret"
+  config.track_end_user_ip = false  # Disable end user IP tracking
+end
+```
+
+When disabled, the API will still receive the server's IP address (for rate limiting purposes), but individual form submitters won't be tracked.
+
+**Breaking Change:** Starting with version 2.0.0, IP tracking is **ON by default**. If you upgrade from an earlier version, end user IPs will automatically be tracked unless you explicitly disable it. Review your privacy policy before upgrading.
+
 ## Usage
 
 ### Basic Usage

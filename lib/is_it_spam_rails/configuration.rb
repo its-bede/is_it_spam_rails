@@ -15,12 +15,15 @@ module IsItSpamRails
     attr_accessor :timeout
     # @return [Logger, nil] Logger instance for debugging
     attr_accessor :logger
+    # @return [Boolean] Whether to track end user IP addresses (default: true)
+    attr_accessor :track_end_user_ip
 
     # Initialize configuration with default values
     def initialize
       @base_url = "https://is-it-spam.com"
       @timeout = 30
       @logger = rails_logger
+      @track_end_user_ip = true
     end
 
     # Get configured client instance
