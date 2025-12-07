@@ -3,7 +3,7 @@ PATH
   specs:
     is_it_spam_rails (2.0.0)
       httparty (~> 0.21)
-      rails (>= 6.0)
+      rails (>= 8.0)
 
 GEM
   remote: https://rubygems.org/
@@ -121,7 +121,6 @@ GEM
       net-smtp
     marcel (1.0.4)
     mini_mime (1.1.5)
-    mini_portile2 (2.8.9)
     minitest (5.25.5)
     multi_xml (0.7.2)
       bigdecimal (~> 3.1)
@@ -204,8 +203,6 @@ GEM
       io-console (~> 0.5)
     rexml (3.4.1)
     securerandom (0.4.1)
-    sqlite3 (1.7.3)
-      mini_portile2 (~> 2.8.0)
     sqlite3 (1.7.3-aarch64-linux)
     sqlite3 (1.7.3-arm-linux)
     sqlite3 (1.7.3-arm64-darwin)

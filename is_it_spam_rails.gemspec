@@ -34,7 +34,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Dependencies
-  spec.add_dependency "rails", ">= 6.0"
+  spec.add_dependency "rails", ">= 8.0"
   spec.add_dependency "httparty", "~> 0.21"
   
   # Development dependencies
