@@ -36,9 +36,29 @@ module IsItSpamRails
     def check_for_spam(on_spam_options = {}, form_param_name = nil)
       # Extract form parameters - try custom parameter name first if provided
       form_params = extract_form_params(form_param_name)
-      
-      # Skip if essential parameters are blank
-      return unless form_params[:name].present? && form_params[:email].present? && form_params[:message].present?
+
+      # If essential contact form parameters are blank, treat as spam
+      # Contact forms require name, email, and message to be valid submissions
+      if form_params[:name].blank? || form_params[:email].blank? || form_params[:message].blank?
+        missing_fields = []
+        missing_fields << "name" if form_params[:name].blank?
+        missing_fields << "email" if form_params[:email].blank?
+        missing_fields << "message" if form_params[:message].blank?
+
+        Rails.logger&.warn("IsItSpam: Required contact form fields missing (#{missing_fields.join(', ')}) - treating as spam")
+
+        @spam_check_result = SpamCheckResult.new({
+          "spam" => true,
+          "confidence" => 1.0,
+          "reasons" => ["Required contact form field is missing: #{missing_fields.join(', ')}"]
+        })
+
+        if on_spam_options.any?
+          handle_spam_detection(on_spam_options)
+        end
+
+        return
+      end
 
       # Capture end user IP if tracking is enabled and request is available
       end_user_ip = if IsItSpamRails.configuration.track_end_user_ip && respond_to?(:request) && request.respond_to?(:remote_ip)
@@ -55,7 +75,7 @@ module IsItSpamRails
           custom_fields: {},
           end_user_ip: end_user_ip
         )
-        
+
         if @spam_check_result&.spam? && on_spam_options.any?
           handle_spam_detection(on_spam_options)
         end

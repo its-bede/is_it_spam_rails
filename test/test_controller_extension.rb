@@ -207,7 +207,7 @@ class TestControllerExtension < Minitest::Test
     end
   end
 
-  def test_skips_check_when_essential_parameters_missing
+  def test_treats_missing_fields_as_spam
     @controller.params = ActionController::Parameters.new({
       contact: {
         name: "John Doe",
@@ -215,12 +215,55 @@ class TestControllerExtension < Minitest::Test
         message: "Test"
       }
     })
-    
+
     @controller.send(:check_for_spam, {})
-    
-    # Should not call API or set result when essential params missing
-    assert_nil @controller.instance_variable_get(:@spam_check_result)
-    assert_nil @controller.redirected_to
+
+    # Should treat missing essential params as spam without calling API
+    result = @controller.instance_variable_get(:@spam_check_result)
+    assert_not_nil result
+    assert result.spam?
+    assert_equal 1.0, result.confidence_score
+    assert_includes result.spam_reasons.first, "Required contact form field is missing"
+    assert_nil @controller.redirected_to # No redirect because no on_spam options
+  end
+
+  def test_treats_missing_message_as_spam
+    @controller.params = ActionController::Parameters.new({
+      contact: {
+        name: "John Doe",
+        email: "john@example.com",
+        message: "" # Missing message
+      }
+    })
+
+    @controller.send(:check_for_spam, {})
+
+    # Should treat missing message as spam
+    result = @controller.instance_variable_get(:@spam_check_result)
+    assert_not_nil result
+    assert result.spam?
+    assert_equal 1.0, result.confidence_score
+    assert_includes result.spam_reasons.first, "message"
+  end
+
+  def test_redirects_when_missing_fields_with_on_spam_options
+    @controller.params = ActionController::Parameters.new({
+      contact: {
+        name: "",
+        email: "test@example.com",
+        message: "Test"
+      }
+    })
+
+    on_spam_options = { redirect_to: "/thanks", notice: "Thank you" }
+    @controller.send(:check_for_spam, on_spam_options)
+
+    # Should treat as spam and redirect with on_spam options
+    result = @controller.instance_variable_get(:@spam_check_result)
+    assert_not_nil result
+    assert result.spam?
+    assert_equal "/thanks", @controller.redirected_to
+    assert_equal "Thank you", @controller.flash_captured[:notice]
   end
 
   def test_error_handling_with_rails_logger
