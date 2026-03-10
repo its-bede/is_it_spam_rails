@@ -16,12 +16,19 @@ module IsItSpamRails
       # @option options [String] :on_spam[:notice] Flash notice message to display
       # @option options [String] :on_spam[:alert] Flash alert message to display
       # @option options [Symbol, String] :form_param_name Name of the nested parameter containing form data
+      # @option options [Hash] :field_map Override how fields are extracted. Keys are +:name+, +:email+, or +:message+.
+      #   Values can be an Array of param keys to join with a space, or a Proc that receives the raw nested params.
+      #   @example Array form
+      #     field_map: { name: [:fname, :lname] }
+      #   @example Proc form
+      #     field_map: { name: ->(p) { "#{p[:fname]} #{p[:lname]}" } }
       def is_it_spam(options = {})
         on_spam_options = options.delete(:on_spam) || {}
         form_param_name = options.delete(:form_param_name)
-        
+        field_map = options.delete(:field_map) || {}
+
         before_action(options) do
-          check_for_spam(on_spam_options, form_param_name)
+          check_for_spam(on_spam_options, form_param_name, field_map)
         end
       end
     end
@@ -32,10 +39,11 @@ module IsItSpamRails
     #
     # @param on_spam_options [Hash] Options for spam handling
     # @param form_param_name [Symbol, String, nil] Name of the nested parameter containing form data
+    # @param field_map [Hash] Optional overrides for field extraction
     # @return [void]
-    def check_for_spam(on_spam_options = {}, form_param_name = nil)
+    def check_for_spam(on_spam_options = {}, form_param_name = nil, field_map = {})
       # Extract form parameters - try custom parameter name first if provided
-      form_params = extract_form_params(form_param_name)
+      form_params = extract_form_params(form_param_name, field_map)
 
       # If essential contact form parameters are blank, treat as spam
       # Contact forms require name, email, and message to be valid submissions
@@ -93,39 +101,57 @@ module IsItSpamRails
     # Extract form parameters from nested params
     #
     # @param form_param_name [Symbol, String, nil] Name of the nested parameter containing form data
-    # @return [Hash] Extracted form parameters
-    def extract_form_params(form_param_name = nil)
+    # @param field_map [Hash] Optional overrides for +:name+, +:email+, or +:message+ extraction.
+    #   Values are an Array of param keys (joined with space) or a Proc receiving the raw nested params.
+    # @return [Hash] Extracted form parameters with keys +:name+, +:email+, +:message+
+    def extract_form_params(form_param_name = nil, field_map = {})
       # First try custom form parameter name if provided
       if form_param_name && params[form_param_name.to_sym].is_a?(ActionController::Parameters)
         nested_params = params[form_param_name.to_sym]
-        return {
+        return apply_field_map({
           name: nested_params[:name] || nested_params[:first_name] || "#{nested_params[:first_name]} #{nested_params[:last_name]}".strip,
           email: nested_params[:email],
           message: nested_params[:message] || nested_params[:body] || nested_params[:content]
-        }
+        }, nested_params, field_map)
       end
-      
+
       # Try common form parameter keys for backward compatibility
       common_keys = [:commission, :contact, :inquiry, :message, :form]
-      
-      # Try nested parameters
+
       common_keys.each do |key|
         if params[key].is_a?(ActionController::Parameters)
           nested_params = params[key]
-          return {
+          return apply_field_map({
             name: nested_params[:name] || nested_params[:first_name] || "#{nested_params[:first_name]} #{nested_params[:last_name]}".strip,
             email: nested_params[:email],
             message: nested_params[:message] || nested_params[:body] || nested_params[:content]
-          }
+          }, nested_params, field_map)
         end
       end
-      
+
       # Fallback to direct parameter access
-      {
+      apply_field_map({
         name: params[:name] || params[:first_name] || "#{params[:first_name]} #{params[:last_name]}".strip,
         email: params[:email],
         message: params[:message] || params[:body] || params[:content]
-      }
+      }, params, field_map)
+    end
+
+    # Apply field_map overrides to extracted form params
+    #
+    # @param extracted [Hash] Default-extracted fields
+    # @param raw_params [ActionController::Parameters] The raw parameter source
+    # @param field_map [Hash] Overrides keyed by field name
+    # @return [Hash] Merged result with field_map values applied
+    def apply_field_map(extracted, raw_params, field_map)
+      return extracted if field_map.empty?
+
+      field_map.each_with_object(extracted) do |(field, mapping), result|
+        result[field] = case mapping
+                        when Array then mapping.map { |k| raw_params[k] }.compact.join(" ")
+                        when Proc  then mapping.call(raw_params)
+                        end
+      end
     end
 
     # Handle spam detection by redirecting with flash message

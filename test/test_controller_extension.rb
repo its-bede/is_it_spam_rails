@@ -326,6 +326,88 @@ class TestControllerExtension < Minitest::Test
     end
   end
 
+  def test_field_map_with_array_joins_values
+    legitimate_result = mock_spam_check_result(spam: false)
+
+    mock_check_spam(legitimate_result) do
+      @controller.params = ActionController::Parameters.new({
+        contact_request: {
+          fname: "John",
+          lname: "Doe",
+          email: "john@example.com",
+          message: "Hello"
+        }
+      })
+
+      @controller.send(:check_for_spam, {}, :contact_request, { name: [:fname, :lname] })
+
+      assert_equal legitimate_result, @controller.instance_variable_get(:@spam_check_result)
+    end
+  end
+
+  def test_field_map_with_proc
+    legitimate_result = mock_spam_check_result(spam: false)
+
+    mock_check_spam(legitimate_result) do
+      @controller.params = ActionController::Parameters.new({
+        contact_request: {
+          fname: "John",
+          lname: "Doe",
+          email: "john@example.com",
+          message: "Hello"
+        }
+      })
+
+      name_proc = ->(p) { "#{p[:fname]} #{p[:lname]}" }
+      @controller.send(:check_for_spam, {}, :contact_request, { name: name_proc })
+
+      assert_equal legitimate_result, @controller.instance_variable_get(:@spam_check_result)
+    end
+  end
+
+  def test_field_map_resolves_missing_name_field
+    @controller.params = ActionController::Parameters.new({
+      contact_request: {
+        fname: "John",
+        lname: "Doe",
+        email: "",
+        message: "Hello"
+      }
+    })
+
+    # Without field_map, name would be blank (no :name key) → treated as spam
+    # With field_map, name resolves to "John Doe" → only email is missing
+    @controller.send(:check_for_spam, {}, :contact_request, { name: [:fname, :lname] })
+
+    result = @controller.instance_variable_get(:@spam_check_result)
+    assert result.spam?
+    assert_includes result.spam_reasons.first, "email"
+    refute_includes result.spam_reasons.first, "name"
+  end
+
+  def test_field_map_applies_to_all_three_fields
+    legitimate_result = mock_spam_check_result(spam: false)
+
+    mock_check_spam(legitimate_result) do
+      @controller.params = ActionController::Parameters.new({
+        contact_request: {
+          fname: "John",
+          lname: "Doe",
+          mail: "john@example.com",
+          body: "Hello there"
+        }
+      })
+
+      @controller.send(:check_for_spam, {}, :contact_request, {
+        name: [:fname, :lname],
+        email: ->(p) { p[:mail] },
+        message: ->(p) { p[:body] }
+      })
+
+      assert_equal legitimate_result, @controller.instance_variable_get(:@spam_check_result)
+    end
+  end
+
   def test_concern_inclusion_works_properly
     # Test that ActiveSupport::Concern is working correctly
     assert TestController.included_modules.include?(IsItSpamRails::ControllerExtension)

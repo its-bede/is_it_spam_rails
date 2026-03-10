@@ -1,6 +1,14 @@
 ## [Unreleased]
 
-## [2.0.0] - TBD
+## [2.1.0] - 2026-03-10
+
+### Added
+- **`field_map` option** for custom field extraction in `is_it_spam` - allows mapping non-standard parameter names to `name`, `email`, and `message` fields
+  - Array form joins multiple params with a space: `field_map: { name: [:fname, :lname] }`
+  - Proc form provides full control: `field_map: { name: ->(p) { "#{p[:fname]} #{p[:lname]}" } }`
+  - All three fields (`name`, `email`, `message`) are remappable
+
+## [2.0.0]
 
 ### ⚠️ Breaking Changes
 - **IP tracking is now ON by default** - The gem automatically captures and sends end user IP addresses (`request.remote_ip`) to the API
